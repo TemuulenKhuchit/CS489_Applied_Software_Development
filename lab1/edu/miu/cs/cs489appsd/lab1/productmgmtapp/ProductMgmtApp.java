@@ -1,4 +1,4 @@
-package edu.miu.cs.cs489appsd.lab1a.productmgmtapp;
+package edu.miu.cs.cs489appsd.lab1.productmgmtapp;
 
 import edu.miu.cs.cs489appsd.lab1.productmgmtapp.model.Product;
 
