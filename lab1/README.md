@@ -10,7 +10,7 @@ How to run (PowerShell):
 
 2. Or compile and run manually:
 
-   javac -d out edu\miu\cs\cs489appsd\lab1\productmgmtapp\model\Product.java edu\miu\cs\cs489appsd\lab1a\productmgmtapp\ProductMgmtApp.java
-   java -cp out edu.miu.cs.cs489appsd.lab1a.productmgmtapp.ProductMgmtApp
+   javac -d out edu\miu\cs\cs489appsd\lab1\productmgmtapp\model\Product.java edu\miu\cs\cs489appsd\lab1\productmgmtapp\ProductMgmtApp.java
+   java -cp out edu\miu\cs\cs489appsd\lab1\productmgmtapp\ProductMgmtApp
 
 The program prints three sections to stdout: JSON, XML and CSV.
