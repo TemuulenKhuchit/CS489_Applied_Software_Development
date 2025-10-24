@@ -1,0 +1,120 @@
+name: Labs Maven CI
+
+on:
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - '**/*.md'
+  pull_request:
+    branches: [ main ]
+    paths-ignore:
+      - '**/*.md'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      hasChanges: ${{ steps.set-matrix.outputs.hasChanges }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute diff range
+        id: range
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "BASE=${{ github.event.pull_request.base.sha }}" >> $GITHUB_OUTPUT
+            echo "HEAD=${{ github.event.pull_request.head.sha }}" >> $GITHUB_OUTPUT
+          else
+            echo "BASE=${{ github.event.before }}" >> $GITHUB_OUTPUT
+            echo "HEAD=${{ github.sha }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Find changed labs
+        id: set-matrix
+        run: |
+          set -e
+          BASE="${{ steps.range.outputs.BASE }}"
+          HEAD="${{ steps.range.outputs.HEAD }}"
+
+          # On first push (no base), build all labs that have a pom.xml
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+            CHANGED_DIRS=$(find . -maxdepth 2 -type f -name pom.xml -printf '%h\n' \
+              | grep -E '^./lab[0-9]+' | sort -u)
+          else
+            CHANGED_DIRS=$(
+              git diff --name-only "$BASE" "$HEAD" \
+              | grep -E '^lab[0-9]+/' || true
+            )
+            CHANGED_DIRS=$(
+              echo "$CHANGED_DIRS" \
+              | awk -F/ '{print $1}' \
+              | sort -u \
+              | while read d; do
+                  if [ -f "$d/pom.xml" ]; then echo "$d"; fi
+                done
+            )
+          fi
+
+          if [ -n "$CHANGED_DIRS" ]; then
+            echo "Changed labs:"
+            echo "$CHANGED_DIRS"
+            JSON=$(printf '%s\n' "$CHANGED_DIRS" | jq -R . | jq -s '{project: .}')
+            echo "matrix=$JSON" >> $GITHUB_OUTPUT
+            echo "hasChanges=true" >> $GITHUB_OUTPUT
+          else
+            echo "No changed labs."
+            echo 'matrix={"project":[]}' >> $GITHUB_OUTPUT
+            echo "hasChanges=false" >> $GITHUB_OUTPUT
+          fi
+
+  build:
+    name: Build & Test
+    needs: detect
+    if: ${{ needs.detect.outputs.hasChanges == 'true' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.detect.outputs.matrix) }}
+    defaults:
+      run:
+        working-directory: ${{ matrix.project }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Temurin JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+          cache: 'maven'
+
+      - name: Choose Maven runner (wrapper if present)
+        id: mvn-cmd
+        run: |
+          if [ -x "./mvnw" ]; then
+            echo "cmd=./mvnw" >> $GITHUB_OUTPUT
+          else
+            echo "cmd=mvn" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Verify (unit tests + package)
+        run: ${{ steps.mvn-cmd.outputs.cmd }} -B -ntp -DskipITs verify
+
+      - name: Upload artifact (optional)
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.project }}-target
+          path: ${{ matrix.project }}/target
