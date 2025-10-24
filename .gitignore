@@ -1,0 +1,19 @@
+# IDEs
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Maven/Java
+**/target/
+**/.classpath
+**/.project
+**/.settings/
+
+# Node
+**/node_modules/
+
+# Logs
+**/*.log
