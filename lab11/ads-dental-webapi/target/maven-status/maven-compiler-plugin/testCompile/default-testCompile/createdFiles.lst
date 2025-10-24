@@ -1,0 +1,3 @@
+edu\miu\cs489\lab11\ads_dental_webapi\AdsDentalWebapiApplicationTests.class
+edu\miu\cs489\lab11\ads_dental_webapi\service\PatientServiceIntegrationTest.class
+edu\miu\cs489\lab11\ads_dental_webapi\controller\PatientControllerUnitTest.class
